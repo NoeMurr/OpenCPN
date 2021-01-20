@@ -529,14 +529,15 @@ bool dashboard_pi::DeInit( void )
 }
 
 double GetJsonDouble(wxJSONValue &value) {
-    double d_ret;
+    double d_ret =0;
     if (value.IsDouble()) {
-        return d_ret = value.AsDouble();
+        d_ret = value.AsDouble();
     }
-    else if (value.IsInt()) {
-        int i_ret = value.AsInt();
-        return d_ret = i_ret;
+    else if (value.IsLong()) {
+        int i_ret = value.AsLong();
+        d_ret = i_ret;
     }
+    return d_ret;
 }
 
 void dashboard_pi::Notify()
@@ -1494,16 +1495,19 @@ void dashboard_pi::updateSKItem(wxJSONValue &item, wxString &sfixtime) {
        && item.HasMember("value")) {
         const wxString &update_path = item["path"].AsString();
         wxJSONValue &value = item["value"];
+        
         if(update_path == _T("navigation.position")) {
             if (mPriPosition >= 2) {
-                mPriPosition = 2;
-                double lat = value["latitude"].AsDouble();
-                double lon = value["longitude"].AsDouble();
-                SendSentenceToAllInstruments(OCPN_DBP_STC_LAT, lat, _T("SDMM"));
-                SendSentenceToAllInstruments(OCPN_DBP_STC_LON, lon, _T("SDMM"));
+                if (value["latitude"].IsDouble() && value["longitude"].IsDouble()) {
+                    double lat = value["latitude"].AsDouble();
+                    double lon = value["longitude"].AsDouble();
+                    SendSentenceToAllInstruments(OCPN_DBP_STC_LAT, lat, _T("SDMM"));
+                    SendSentenceToAllInstruments(OCPN_DBP_STC_LON, lon, _T("SDMM"));
+                    mPriPosition = 2;
+                }
             }
         } 
-        else if(update_path == _T("navigation.speedOverGround")){
+        else if(update_path == _T("navigation.speedOverGround") && 2 == mPriPosition){
             double sog_knot = GetJsonDouble(value);
             if (std::isnan(sog_knot)) return;
 
@@ -1511,7 +1515,7 @@ void dashboard_pi::updateSKItem(wxJSONValue &item, wxString &sfixtime) {
                         toUsrSpeed_Plugin( mSOGFilter.filter(sog_knot), 
                         g_iDashSpeedUnit ), getUsrSpeedUnit_Plugin( g_iDashSpeedUnit ) );
         }
-        else if(update_path == _T("navigation.courseOverGroundTrue")){
+        else if(update_path == _T("navigation.courseOverGroundTrue") && 2 == mPriPosition){
             double cog_rad = GetJsonDouble(value);
             if (std::isnan(cog_rad)) return;
 
